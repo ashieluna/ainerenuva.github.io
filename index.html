@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Role Play World</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(44, 62, 80, 0.2);
+            padding: 32px 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.03);
+        }
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 16px;
+            border: 4px solid #74ebd5;
+        }
+        h1, h2 {
+            margin: 0 0 8px 0;
+            font-size: 2rem;
+            color: #333;
+        }
+        .info {
+            color: #555;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+        .section-title {
+            margin-top: 24px;
+            font-weight: bold;
+            color: #74ebd5;
+            letter-spacing: 1px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0 0 0;
+        }
+        li {
+            margin-bottom: 6px;
+            color: #444;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #74ebd5;
+        }
+        button {
+            background: #74ebd5;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 12px;
+        }
+        button:hover {
+            background: #ACB6E5;
+        }
+        .switch-link {
+            color: #74ebd5;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.95rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="loginCard">
+        <h2>Role Play World - Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button onclick="showBiodata()">Log In</button>
+        <div class="switch-link" onclick="showSignup()">Create Account</div>
+    </div>
+    <div class="card" id="signupCard" style="display:none;">
+        <h2>Role Play World - Create Account</h2>
+        <input type="text" id="signupUsername" placeholder="Username" required>
+        <input type="password" id="signupPassword" placeholder="Password" required>
+        <input type="email" id="signupEmail" placeholder="Email" required>
+        <button onclick="signup()">Sign Up</button>
+        <div class="switch-link" onclick="showLogin()">Already have an account?</div>
+    </div>
+    <div class="card" id="biodataCard" style="display:none;">
+        <h2 id="welcomeUser"></h2>
+        <div class="section-title">News Feed</div>
+        <div id="feed"></div>
+        <div style="margin-top:16px;">
+            <input type="text" id="postInput" placeholder="What's on your mind?" style="width:80%;padding:8px;">
+            <button onclick="addPost()">Post</button>
+        </div>
+        <div class="section-title">Messages</div>
+        <div>
+            <select id="recipientSelect" style="width:80%;padding:8px;border-radius:8px;margin-bottom:8px;">
+                <!-- Options will be filled by JS -->
+            </select>
+            <input type="text" id="messageInput" placeholder="Type a message..." style="width:80%;padding:8px;">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        <div id="messages" style="margin-top:12px;text-align:left;">
+            <!-- Messages will appear here -->
+        </div>
+    </div>
+    <script>
+    let registeredUser = null;
+    let users = [];
+    let posts = [];
+    let messages = {}; // { username: [ { from, text } ] }
+
+    function showSignup() {
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('signupCard').style.display = 'block';
+        document.getElementById('biodataCard').style.display = 'none';
+    }
+    function showLogin() {
+        document.getElementById('signupCard').style.display = 'none';
+        document.getElementById('loginCard').style.display = 'block';
+        document.getElementById('biodataCard').style.display = 'none';
+    }
+    function showBiodata() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        const user = users.find(u => u.username === username && u.password === password);
+        if (!user) {
+            alert('Incorrect username or password.');
+            return;
+        }
+        registeredUser = user;
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('signupCard').style.display = 'none';
+        document.getElementById('biodataCard').style.display = 'block';
+        document.getElementById('welcomeUser').innerText = "Welcome, " + registeredUser.username + "!";
+        renderFeed();
+        renderUsers();
+        renderMessages();
+    }
+    function signup() {
+        const username = document.getElementById('signupUsername').value;
+        const password = document.getElementById('signupPassword').value;
+        const email = document.getElementById('signupEmail').value;
+        if (!username || !password || !email) {
+            alert('Please fill in all fields.');
+            return;
+        }
+        if (users.find(u => u.username === username)) {
+            alert('Username already exists.');
+            return;
+        }
+        users.push({ username, password, email });
+        messages[username] = [];
+        alert('Account created! Please log in.');
+        showLogin();
+    }
+
+    // News Feed
+    function addPost() {
+        const input = document.getElementById('postInput');
+        const text = input.value.trim();
+        if (!text) return;
+        posts.unshift({
+            user: registeredUser.username,
+            text,
+            likes: 0,
+            comments: []
+        });
+        input.value = '';
+        renderFeed();
+    }
+    function likePost(index) {
+        posts[index].likes++;
+        renderFeed();
+    }
+    function addComment(index) {
+        const commentInput = document.getElementById('commentInput' + index);
+        const comment = commentInput.value.trim();
+        if (!comment) return;
+        posts[index].comments.push({ user: registeredUser.username, text: comment });
+        commentInput.value = '';
+        renderFeed();
+    }
+    function renderFeed() {
+        const feed = document.getElementById('feed');
+        feed.innerHTML = posts.map((post, i) => `
+            <div style="background:#f4f8fb;border-radius:8px;padding:12px;margin-bottom:12px;text-align:left;">
+                <strong>${post.user}</strong>: ${post.text}
+                <div style="margin-top:8px;">
+                    <button onclick="likePost(${i})" style="background:#1877f2;color:#fff;border:none;padding:6px 18px;border-radius:18px;cursor:pointer;display:inline-flex;align-items:center;font-weight:bold;">
+                        👍 Like (${post.likes})
+                    </button>
+                </div>
+                <div style="margin-top:8px;">
+                    <input type="text" id="commentInput${i}" placeholder="Write a comment..." style="width:70%;padding:6px;border-radius:12px;border:1px solid #ccc;">
+                    <button onclick="addComment(${i})" style="background:#e4e6eb;color:#050505;border:none;padding:6px 14px;border-radius:18px;cursor:pointer;display:inline-flex;align-items:center;font-weight:bold;">
+                        💬 Comment
+                    </button>
+                </div>
+                <div style="margin-top:8px;">
+                    ${post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.user}</strong>: ${c.text}</div>`).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Messaging
+    function renderUsers() {
+        const select = document.getElementById('recipientSelect');
+        select.innerHTML = users
+            .filter(u => u.username !== registeredUser.username)
+            .map(u => `<option value="${u.username}">${u.username}</option>`)
+            .join('');
+    }
+    function sendMessage() {
+        const recipient = document.getElementById('recipientSelect').value;
+        const text = document.getElementById('messageInput').value.trim();
+        if (!recipient || !text) return;
+        if (!messages[recipient]) messages[recipient] = [];
+        messages[recipient].push({ from: registeredUser.username, text });
+        document.getElementById('messageInput').value = '';
+        renderMessages();
+        alert('Message sent!');
+    }
+    function renderMessages() {
+        const msgDiv = document.getElementById('messages');
+        const myMessages = messages[registeredUser.username] || [];
+        msgDiv.innerHTML = myMessages.length
+            ? myMessages.map(m => `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')
+            : '<div>No messages yet.</div>';
+    }
+    </script>
+</body>
+</html>
